@@ -1,0 +1,80 @@
+---
+- hosts: localhost
+  become: true
+  tasks:
+    # Update apt repository cache (if not done earlier)
+    - name: Update apt repository cache
+      apt:
+        update_cache: yes
+
+    # Install Node.js and npm
+    - name: Install Node.js and npm
+      apt:
+        name: nodejs
+        state: present
+
+    - name: Install npm
+      apt:
+        name: npm
+        state: present
+
+    # Install Nginx
+    - name: Install Nginx
+      apt:
+        name: nginx
+        state: present
+
+    # Start and enable Nginx
+    - name: Start and enable Nginx
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    # Create application directory for the Node.js application
+    - name: Create application directory
+      file:
+        path: /var/www/webclues-app
+        state: directory
+
+    # Copy Node.js application code (app.js and package.json) to the server
+    - name: Copy Node.js application code (app.js and package.json)
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+      with_items:
+        - { src: "/root/webcluse/sourcecode/app.js", dest: "/var/www/webclues-app/app.js" }
+        - { src: "/root/webcluse/sourcecode/package.json", dest: "/var/www/webclues-app/package.json" }
+
+    # Install npm dependencies for the application
+    - name: Install npm dependencies
+      command: npm install
+      args:
+        chdir: /var/www/webclues-app
+
+    # Copy the Nginx configuration file to the instance
+    - name: Copy Nginx configuration file
+      copy:
+        src: "/root/webcluse/sourcecode/nginx_config"
+        dest: "/etc/nginx/sites-available/default"
+        mode: '0644'
+
+    # Enable the Nginx site configuration and test the configuration
+    - name: Test the Nginx configuration
+      command: nginx -t
+      ignore_errors: yes
+
+    # Restart Nginx to apply new configuration
+    - name: Restart Nginx
+      service:
+        name: nginx
+        state: restarted
+
+    # Start the Node.js application
+    - name: Start Node.js application
+      command: npm start
+      args:
+        chdir: /var/www/webclues-app
+      environment:
+        NODE_ENV: production
+
